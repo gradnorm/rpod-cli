@@ -7,6 +7,7 @@ from rpod import __version__, auth, config
 from rpod import deploy as deploy_module
 from rpod import fetch as fetch_module
 from rpod import sync as sync_module
+from rpod import pod as pod_module
 
 console = Console()
 
@@ -33,7 +34,9 @@ def version_callback(value: bool) -> None:
 def main(
     version: Annotated[
         bool,
-        typer.Option("--version", callback=version_callback, help="Show the rpod version."),
+        typer.Option(
+            "--version", callback=version_callback, help="Show the rpod version."
+        ),
     ] = False,
 ) -> None:
     pass
@@ -77,6 +80,12 @@ def add_target(
     console.print(f"[green]Saved target[/green] {name}")
 
 
+@app.command("list")
+def list_pods() -> None:
+    """List RunPod pods"""
+    pod_module.list_pods(console)
+
+
 @app.command()
 def deploy(
     repo: Annotated[str, typer.Option("--repo", help="Git repository URL.")],
@@ -84,11 +93,17 @@ def deploy(
         str | None,
         typer.Option("--target", help="Saved target name from 'rpod target add'."),
     ] = None,
-    host: Annotated[str | None, typer.Option("--host", help="SSH hostname or IP address.")] = None,
+    host: Annotated[
+        str | None, typer.Option("--host", help="SSH hostname or IP address.")
+    ] = None,
     user: Annotated[str, typer.Option("--user", help="SSH username.")] = "root",
     port: Annotated[int, typer.Option("--port", help="SSH port.")] = 22,
-    ssh_key: Annotated[str | None, typer.Option("--ssh-key", help="Path to SSH key.")] = None,
-    checkout: Annotated[str | None, typer.Option("--checkout", help="Branch, tag, or SHA.")] = None,
+    ssh_key: Annotated[
+        str | None, typer.Option("--ssh-key", help="Path to SSH key.")
+    ] = None,
+    checkout: Annotated[
+        str | None, typer.Option("--checkout", help="Branch, tag, or SHA.")
+    ] = None,
     remote_dir: Annotated[
         str,
         typer.Option("--remote-dir", help="Remote workspace directory."),
@@ -99,7 +114,9 @@ def deploy(
     ] = None,
     bootstrap: Annotated[
         list[str] | None,
-        typer.Option("--bootstrap", help="Command to run after checkout. Can be repeated."),
+        typer.Option(
+            "--bootstrap", help="Command to run after checkout. Can be repeated."
+        ),
     ] = None,
     dry_run: Annotated[
         bool,
@@ -128,7 +145,9 @@ def sync_env(
     target: Annotated[str, typer.Option("--target", help="Saved target name.")],
     env_vars: Annotated[
         list[str],
-        typer.Option("--var", "--vars", help="Environment variable to sync. Can be repeated."),
+        typer.Option(
+            "--var", "--vars", help="Environment variable to sync. Can be repeated."
+        ),
     ],
     remote_path: Annotated[
         str,
@@ -146,8 +165,12 @@ def sync_env(
 @app.command()
 def fetch(
     target: Annotated[str, typer.Option("--target", help="Saved target name.")],
-    remote_path: Annotated[str, typer.Option("--remote-path", help="Remote file or directory.")],
-    local_path: Annotated[str, typer.Option("--local-path", help="Local destination path.")],
+    remote_path: Annotated[
+        str, typer.Option("--remote-path", help="Remote file or directory.")
+    ],
+    local_path: Annotated[
+        str, typer.Option("--local-path", help="Local destination path.")
+    ],
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="Print commands without running."),
