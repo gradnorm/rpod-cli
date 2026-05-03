@@ -1,21 +1,14 @@
 # rpod-cli
 
-`rpod-cli` is a lightweight command-line tool for preparing and managing RunPod experiment workspaces. 
+`rpod` automates the repetitive parts of working with a RunPod pod: SSH in,
+clone your repo, run setup, and pull files back.
 
 ![rpod list screenshot](assets/rpod-screenshot.png)
 
-
-It focuses on automating repetitive parts of remote ML training and experiments:
-
-- Clone or update GitHub repo on a pod
-- Check out a branch, tag or commit
-- Run setup commands such as `uv sync`
-- Sync .env / config files
-- Fetch logs, checkpoints and artifacts back to local machine
-
-
 The published package name is `rpod-cli`; the installed shell command is
 `rpod`.
+
+Status: early alpha.
 
 ## Install
 
@@ -45,19 +38,33 @@ After install, the CLI command is available as:
 rpod --help
 ```
 
-When published to PyPI, installation will be:
+## Usage
+
+Set your RunPod API key so `rpod` can list pods and resolve `--index`:
 
 ```bash
-pip install rpod-cli
+export RUNPOD_API_KEY="..."
 ```
-
-## Usage
 
 List RunPod pods:
 
 ```bash
 rpod list
 ```
+
+Example output:
+
+```text
+                                        RunPod Pods
+┏━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Index ┃ Name           ┃ ID             ┃ Status  ┃ GPUs ┃ SSH                  ┃
+┡━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━┩
+│ 1     │ ************** │ ************** │ RUNNING │ 1    │ ***.***.***.***:**** │
+└───────┴────────────────┴────────────────┴─────────┴──────┴──────────────────────┘
+```
+
+Commands such as `rpod ssh`, `rpod deploy`, and `rpod fetch` use the index
+displayed in `rpod list` to select the target pod.
 
 Deploy a repo and run setup:
 
@@ -73,7 +80,21 @@ rpod deploy \
 ```
 
 `--ssh-key` is the key used to connect from your machine to the pod.
-`--github-deploy-key` is copied to the pod so it can clone a private GitHub repo.
+`--github-deploy-key` is copied to the pod so the pod can clone a private
+GitHub repo.
+
+Deploy does the following:
+
+- resolves `--index` using the RunPod API
+- connects to the pod over SSH
+- optionally copies the GitHub deploy key to the pod
+- configures SSH on the pod to use that key for `github.com`
+- clones the repo if missing, or fetches and pulls if it already exists
+- checks out the requested branch, tag, or commit
+- optionally installs `uv`
+- optionally runs `uv sync`
+
+For public repos, omit `--github-deploy-key`.
 
 SSH into a pod:
 
@@ -88,5 +109,15 @@ rpod fetch \
   --index 1 \
   --remote-path /workspace/your-repo/sim_out \
   --local-path ./downloads/sim_out \
+  --ssh-key ~/.ssh/runpod_ed25519
+```
+
+Fetch and archive a directory as `.tar.gz`:
+
+```bash
+rpod fetch \
+  --index 1 \
+  --remote-path /workspace/your-repo/sim_out \
+  --archive \
   --ssh-key ~/.ssh/runpod_ed25519
 ```
