@@ -1,3 +1,5 @@
+"""Authentication checks for external services used by rpod."""
+
 import os
 
 from huggingface_hub import HfApi

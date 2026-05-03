@@ -1,13 +1,16 @@
+"""Typer command-line interface and command registration for rpod."""
+
 from typing import Annotated
 
 import typer
 from rich.console import Console
 
-from rpod import __version__, auth, config
+from rpod import __version__, auth
 from rpod import deploy as deploy_module
 from rpod import fetch as fetch_module
-from rpod import sync as sync_module
 from rpod import pod as pod_module
+from rpod import ssh as ssh_module
+from rpod.runpod_api import RunpodGraphQLClient
 
 console = Console()
 
@@ -15,13 +18,12 @@ app = typer.Typer(
     name="rpod",
     help="Prepare and manage SSH-accessible RunPod experiment workspaces.",
     no_args_is_help=True,
+    add_completion=False,
 )
 
 auth_app = typer.Typer(help="Authentication helpers.")
-target_app = typer.Typer(help="Manage saved pod targets.")
 
 app.add_typer(auth_app, name="auth")
-app.add_typer(target_app, name="target")
 
 
 def version_callback(value: bool) -> None:
@@ -55,40 +57,37 @@ def auth_runpod() -> None:
     auth.check_runpod(console)
 
 
-@target_app.command("list")
-def list_targets() -> None:
-    """List configured pod targets."""
-    cfg = config.load_config()
-    config.print_targets(console, cfg)
-
-
-@target_app.command("add")
-def add_target(
-    name: Annotated[str, typer.Argument(help="Target name, for example 'a100'.")],
-    host: Annotated[str, typer.Option("--host", help="SSH hostname or IP address.")],
-    user: Annotated[str, typer.Option("--user", help="SSH username.")] = "root",
-    port: Annotated[int, typer.Option("--port", help="SSH port.")] = 22,
-    ssh_key: Annotated[
-        str | None,
-        typer.Option("--ssh-key", help="Path to the private SSH key."),
-    ] = None,
-) -> None:
-    """Save a reusable pod target."""
-    cfg = config.load_config()
-    cfg.targets[name] = config.Target(host=host, user=user, port=port, ssh_key=ssh_key)
-    config.save_config(cfg)
-    console.print(f"[green]Saved target[/green] {name}")
-
-
 @app.command("list")
 def list_pods() -> None:
     """List RunPod pods"""
     pod_module.list_pods(console)
 
 
+@app.command("ssh")
+def ssh_pod(
+    index: Annotated[int, typer.Option("--index", help="Pod index from rpod list.")],
+    user: Annotated[str, typer.Option("--user", help="SSH username.")] = "root",
+    ssh_key: Annotated[
+        str | None, typer.Option("--ssh-key", help="Path to ssh key.")
+    ] = None,
+):
+    """SSH into a runpod by index"""
+    client = RunpodGraphQLClient.from_env()
+    pod = client.get_pod_by_index(index)
+    endpoint = pod_module.ssh_endpoint(pod)
+    if not endpoint:
+        raise typer.BadParameter(f"No public SSH endpoint found for pod index {index}.")
+    host, port = endpoint
+    ssh_module.run_interactive_ssh(host=host, port=port, user=user, ssh_key=ssh_key)
+
+
 @app.command()
 def deploy(
     repo: Annotated[str, typer.Option("--repo", help="Git repository URL.")],
+    index: Annotated[
+        int | None,
+        typer.Option("--index", help="Pod index from 'rpod list'."),
+    ] = None,
     target: Annotated[
         str | None,
         typer.Option("--target", help="Saved target name from 'rpod target add'."),
@@ -108,9 +107,20 @@ def deploy(
         str,
         typer.Option("--remote-dir", help="Remote workspace directory."),
     ] = "/workspace",
+    install_uv: Annotated[
+        bool,
+        typer.Option("--install-uv", help="Install uv on the remote pod if missing."),
+    ] = False,
+    uv_sync: Annotated[
+        bool,
+        typer.Option("--uv-sync", help="Run 'uv sync' after clone/pull."),
+    ] = False,
     uv_extra: Annotated[
         list[str] | None,
-        typer.Option("--uv-extra", help="Extra to pass to 'uv sync --extra'."),
+        typer.Option(
+            "--uv-extra",
+            help="Extra to pass to 'uv sync --extra'. Implies --uv-sync.",
+        ),
     ] = None,
     bootstrap: Annotated[
         list[str] | None,
@@ -118,6 +128,24 @@ def deploy(
             "--bootstrap", help="Command to run after checkout. Can be repeated."
         ),
     ] = None,
+    github_deploy_key: Annotated[
+        str | None,
+        typer.Option("--github-deploy-key", help="Local GitHub deploy key path."),
+    ] = None,
+    github_deploy_key_remote: Annotated[
+        str,
+        typer.Option(
+            "--github-deploy-key-remote",
+            help="Remote path where the GitHub deploy key will be written.",
+        ),
+    ] = "~/.ssh/rpod_github_deploy_key",
+    stdin_upload: Annotated[
+        bool,
+        typer.Option(
+            "--stdin-upload",
+            help="Upload the deploy key through SSH stdin instead of scp.",
+        ),
+    ] = False,
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="Print commands without running."),
@@ -129,59 +157,57 @@ def deploy(
         repo=repo,
         target_name=target,
         host=host,
+        index=index,
         user=user,
         port=port,
         ssh_key=ssh_key,
         checkout=checkout,
         remote_dir=remote_dir,
+        install_uv=install_uv,
+        uv_sync=uv_sync,
         uv_extra=uv_extra or [],
         bootstrap=bootstrap or [],
+        github_deploy_key=github_deploy_key,
+        github_deploy_key_remote=github_deploy_key_remote,
+        stdin_upload=stdin_upload,
         dry_run=dry_run,
     )
 
 
-@app.command("sync-env")
-def sync_env(
-    target: Annotated[str, typer.Option("--target", help="Saved target name.")],
-    env_vars: Annotated[
-        list[str],
-        typer.Option(
-            "--var", "--vars", help="Environment variable to sync. Can be repeated."
-        ),
-    ],
-    remote_path: Annotated[
-        str,
-        typer.Option("--remote-path", help="Remote dotenv path to write."),
-    ] = "/workspace/.env",
-    dry_run: Annotated[
-        bool,
-        typer.Option("--dry-run", help="Print commands without running."),
-    ] = False,
-) -> None:
-    """Sync selected local environment variables to a remote dotenv file."""
-    sync_module.sync_env(console, target, env_vars, remote_path, dry_run=dry_run)
-
-
 @app.command()
 def fetch(
-    target: Annotated[str, typer.Option("--target", help="Saved target name.")],
+    index: Annotated[int, typer.Option("--index", help="Pod index from rpod list.")],
     remote_path: Annotated[
         str, typer.Option("--remote-path", help="Remote file or directory.")
     ],
+    user: Annotated[str, typer.Option("--user", help="SSH username.")] = "root",
+    ssh_key: Annotated[
+        str | None, typer.Option("--ssh-key", help="Path to SSH key.")
+    ] = None,
     local_path: Annotated[
-        str, typer.Option("--local-path", help="Local destination path.")
-    ],
+        str | None,
+        typer.Option(
+            "--local-path",
+            help="Local destination path. Defaults to the remote basename.",
+        ),
+    ] = None,
+    archive: Annotated[
+        bool,
+        typer.Option("--archive", help="Archive remote path as .tar.gz before fetching."),
+    ] = False,
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="Print commands without running."),
     ] = False,
 ) -> None:
     """Fetch artifacts, logs, or checkpoints from a pod."""
-    fetch_module.run(console, target, remote_path, local_path, dry_run=dry_run)
-
-
-@app.command()
-def doctor() -> None:
-    """Show local configuration and dependency checks."""
-    cfg = config.load_config()
-    config.print_config_summary(console, cfg)
+    fetch_module.run(
+        console,
+        index=index,
+        user=user,
+        ssh_key=ssh_key,
+        remote_path=remote_path,
+        local_path=local_path,
+        archive=archive,
+        dry_run=dry_run,
+    )

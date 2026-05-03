@@ -1,3 +1,5 @@
+"""General utility helpers shared across rpod modules."""
+
 from pathlib import Path
 
 

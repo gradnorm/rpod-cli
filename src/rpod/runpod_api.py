@@ -1,8 +1,10 @@
+"""Minimal RunPod GraphQL client used by pod-related commands."""
+
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 
@@ -22,7 +24,7 @@ class RunpodGraphQLClient:
     timeout_s: int = 30
 
     @classmethod
-    def from_env(cls) -> "RunpodGraphQLClient":
+    def from_env(cls) -> RunpodGraphQLClient:
         api_key = os.getenv("RUNPOD_API_KEY")
         if not api_key:
             raise RunpodGraphQLError(
@@ -31,8 +33,8 @@ class RunpodGraphQLClient:
         return cls(api_key=api_key)
 
     def execute(
-        self, query: str, variables: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, query: str, variables: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Core GraphQL engine"""
 
         # Builds header
@@ -40,7 +42,7 @@ class RunpodGraphQLClient:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
         }
-        payload: Dict[str, Any] = {"query": query}
+        payload: dict[str, Any] = {"query": query}
         if variables is not None:
             payload["variables"] = variables
 
@@ -57,10 +59,10 @@ class RunpodGraphQLClient:
         # Non-2xx is still useful to print
         try:
             data = resp.json()
-        except ValueError:
+        except ValueError as exc:
             raise RunpodGraphQLError(
                 f"Non-JSON response (HTTP {resp.status_code}): {resp.text[:500]}"
-            )
+            ) from exc
 
         if resp.status_code >= 400:
             raise RunpodGraphQLError(f"HTTP {resp.status_code}: {data}")
@@ -74,6 +76,7 @@ class RunpodGraphQLClient:
         return data["data"]
 
     def list_pods(self) -> list[dict[str, Any]]:
+        """Returns a list of pods list[dict[str, Any]]"""
         query = """
         query ListMyPods {
         myself {
@@ -100,3 +103,10 @@ class RunpodGraphQLClient:
         return sorted(
             pods, key=lambda pod: (pod.get("name") or "", pod.get("id") or "")
         )
+
+    def get_pod_by_index(self, index: int) -> dict[str, Any]:
+        """Returns a pod from list_pods based on index"""
+        pods = self.list_pods()
+        if index < 1 or index > len(pods):
+            raise RunpodGraphQLError(f"Invalid pod index {index}. Run 'rpod list'.")
+        return pods[index - 1]

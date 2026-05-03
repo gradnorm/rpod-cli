@@ -1,3 +1,5 @@
+"""Local configuration models, paths, persistence, and display helpers."""
+
 import json
 import os
 from pathlib import Path

@@ -3,6 +3,7 @@
 `rpod-cli` is a lightweight command-line tool for preparing and managing RunPod experiment workspaces. 
 
 It focuses on automating repetitive parts of remote ML training and experiments:
+
 - Clone or update GitHub repo on a pod
 - Check out a branch, tag or commit
 - Run setup commands such as `uv sync`
@@ -14,45 +15,77 @@ The published package name is `rpod-cli`; the installed shell command is
 `rpod`.
 
 ## Install
+
+Install directly from GitHub:
+
+```bash
+pip install git+https://github.com/gradnorm/rpod-cli.git
+```
+
+Or clone the repo and install locally:
+
+```bash
+git clone https://github.com/gradnorm/rpod-cli.git
+cd rpod-cli
+pip install .
+```
+
+For development:
+
 ```bash
 pip install -e ".[dev]"
 ```
 
-## Usage
-
-Add a reusable SSH target:
+After install, the CLI command is available as:
 
 ```bash
-rpod target add a100 \
-  --host 1.2.3.4 \
-  --user root \
-  --port 22 \
-  --ssh-key ~/.ssh/runpod_ed25519
+rpod --help
+```
+
+When published to PyPI, installation will be:
+
+```bash
+pip install rpod-cli
+```
+
+## Usage
+
+List RunPod pods:
+
+```bash
+rpod list
 ```
 
 Deploy a repo and run setup:
 
 ```bash
 rpod deploy \
-  --target a100 \
-  --repo git@github.com:gradnorm/allreduce.git \
-  --checkout train_grpo \
-  --uv-extra faiss_gpu_cu12
+  --index 1 \
+  --repo git@github.com:your-org/your-repo.git \
+  --ssh-key ~/.ssh/runpod_ed25519 \
+  --github-deploy-key ~/.ssh/github_deploy_key \
+  --checkout main \
+  --install-uv \
+  --uv-sync
 ```
 
-Sync selected environment variables:
+`--ssh-key` is the key used to connect from your machine to the pod.
+`--github-deploy-key` is copied to the pod so it can clone a private GitHub repo.
+
+SSH into a pod:
 
 ```bash
-rpod sync-env --target a100 --var HF_TOKEN --var WANDB_API_KEY
+rpod ssh --index 1 --ssh-key ~/.ssh/runpod_ed25519
 ```
 
 Fetch artifacts:
 
 ```bash
 rpod fetch \
-  --target a100 \
-  --remote-path /workspace/allreduce/sim_out \
-  --local-path ./downloads/sim_out
+  --index 1 \
+  --remote-path /workspace/your-repo/sim_out \
+  --local-path ./downloads/sim_out \
+  --ssh-key ~/.ssh/runpod_ed25519
 ```
 
 ## Scope

@@ -1,3 +1,5 @@
+"""Small Hugging Face API helpers."""
+
 from huggingface_hub import HfApi
 
 
