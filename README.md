@@ -1,7 +1,6 @@
 # rpod-cli
 
-`rpod` automates the repetitive parts of working with a RunPod pod: SSH in,
-clone your repo, run setup, and pull files back.
+`rpod` simplifies RunPod experiment setup by automating repo deployment and environment setup on RunPod pods.
 
 ![rpod list screenshot](assets/rpod-screenshot.png)
 
