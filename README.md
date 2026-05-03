@@ -38,15 +38,15 @@ After install, the CLI command is available as:
 rpod --help
 ```
 
-## Usage
+## Get Started
 
-Set your RunPod API key so `rpod` can list pods and resolve `--index`:
+To get started, set your RunPod API key.
 
 ```bash
 export RUNPOD_API_KEY="..."
 ```
 
-List RunPod pods:
+## List RunPod pods:
 
 ```bash
 rpod list
@@ -66,7 +66,7 @@ Example output:
 Commands such as `rpod ssh`, `rpod deploy`, and `rpod fetch` use the index
 displayed in `rpod list` to select the target pod.
 
-Deploy a repo and run setup:
+## Deploy a repo and run setup:
 
 ```bash
 rpod deploy \
@@ -96,13 +96,13 @@ Deploy does the following:
 
 For public repos, omit `--github-deploy-key`.
 
-SSH into a pod:
+## SSH into a pod:
 
 ```bash
 rpod ssh --index 1 --ssh-key ~/.ssh/runpod_ed25519
 ```
 
-Fetch artifacts:
+## Fetch artifacts:
 
 ```bash
 rpod fetch \
