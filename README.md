@@ -2,6 +2,9 @@
 
 `rpod-cli` is a lightweight command-line tool for preparing and managing RunPod experiment workspaces. 
 
+![rpod list screenshot](assets/rpod-screenshot.png)
+
+
 It focuses on automating repetitive parts of remote ML training and experiments:
 
 - Clone or update GitHub repo on a pod
@@ -87,9 +90,3 @@ rpod fetch \
   --local-path ./downloads/sim_out \
   --ssh-key ~/.ssh/runpod_ed25519
 ```
-
-## Scope
-
-`rpod` is not a training framework, experiment tracker, or general
-infrastructure platform. It is a small SSH-first workflow helper for making a
-remote pod feel like a usable project workspace.
