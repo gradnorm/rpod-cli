@@ -86,6 +86,33 @@ def copy_from(
     return run([*scp_args(target), "-r", source, local_path], dry_run=dry_run)
 
 
+def copy_from_stream(
+    target: Target,
+    remote_path: str,
+    local_path: str,
+    dry_run: bool = False,
+) -> CommandResult:
+    """Copy files from remote while allowing scp to show progress."""
+    source = f"{remote_spec(target)}:{remote_path}"
+    args = [*scp_args(target), "-r", source, local_path]
+
+    if dry_run:
+        return CommandResult(args=args, returncode=0, stdout="", stderr="")
+
+    completed = subprocess.run(args, check=False)
+    result = CommandResult(
+        args=args,
+        returncode=completed.returncode,
+        stdout="",
+        stderr="",
+    )
+
+    if completed.returncode != 0:
+        raise RpodCommandError(result)
+
+    return result
+
+
 def copy_to(
     target: Target,
     local_path: str,

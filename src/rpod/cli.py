@@ -6,8 +6,10 @@ import typer
 from rich.console import Console
 
 from rpod import __version__, auth
+from rpod import create as create_module
 from rpod import deploy as deploy_module
 from rpod import fetch as fetch_module
+from rpod import gpu as gpu_module
 from rpod import pod as pod_module
 from rpod import ssh as ssh_module
 from rpod.runpod_api import RunpodGraphQLClient
@@ -22,8 +24,10 @@ app = typer.Typer(
 )
 
 auth_app = typer.Typer(help="Authentication helpers.")
-
 app.add_typer(auth_app, name="auth")
+
+gpu_app = typer.Typer(help="List RunPod GPUs.")
+app.add_typer(gpu_app, name="gpu")
 
 
 def version_callback(value: bool) -> None:
@@ -79,6 +83,27 @@ def ssh_pod(
         raise typer.BadParameter(f"No public SSH endpoint found for pod index {index}.")
     host, port = endpoint
     ssh_module.run_interactive_ssh(host=host, port=port, user=user, ssh_key=ssh_key)
+
+
+@app.command("stop")
+def stop_pod(
+    index: Annotated[int, typer.Option("--index", help="Pod index from rpod list.")],
+) -> None:
+    """Stop a RunPod pod by index."""
+    typer.confirm(f"Stop pod at index {index}?", abort=True)
+    pod_module.stop_pod_by_index(console, index)
+
+
+@app.command("terminate")
+def terminate_pod(
+    index: Annotated[int, typer.Option("--index", help="Pod index from rpod list.")],
+) -> None:
+    """Terminate a RunPod pod by index."""
+    typer.confirm(
+        f"Terminate pod at index {index}? This can permanently delete pod data.",
+        abort=True,
+    )
+    pod_module.terminate_pod_by_index(console, index)
 
 
 @app.command()
@@ -174,6 +199,59 @@ def deploy(
     )
 
 
+@app.command("create")
+def create_pod(
+    name: Annotated[str, typer.Option("--name", help="Pod name.")],
+    image: Annotated[str, typer.Option("--image", help="Docker image name.")],
+    gpu_index: Annotated[
+        int | None,
+        typer.Option("--gpu-index", help="GPU index from 'rpod gpu list'."),
+    ] = None,
+    gpu: Annotated[
+        str | None,
+        typer.Option("--gpu", help="RunPod GPU type ID, for example 'NVIDIA RTX A6000'."),
+    ] = None,
+    gpu_count: Annotated[
+        int,
+        typer.Option("--gpu-count", help="Number of GPUs."),
+    ] = 1,
+    disk: Annotated[
+        int,
+        typer.Option("--disk", help="Container disk size in GB."),
+    ] = 50,
+    volume: Annotated[
+        int,
+        typer.Option("--volume", help="Persistent volume size in GB."),
+    ] = 50,
+    ports: Annotated[
+        str,
+        typer.Option("--ports", help="Ports to expose, for example '22/tcp,8888/http'."),
+    ] = "22/tcp",
+    cloud: Annotated[
+        str,
+        typer.Option("--cloud", help="SECURE or COMMUNITY."),
+    ] = "SECURE",
+    interruptible: Annotated[
+        bool,
+        typer.Option("--interruptible", help="Create a spot/interruptible pod."),
+    ] = False,
+) -> None:
+    """Create a RunPod pod."""
+    create_module.create_pod(
+        console,
+        gpu_index=gpu_index,
+        gpu=gpu,
+        name=name,
+        image=image,
+        gpu_count=gpu_count,
+        disk=disk,
+        volume=volume,
+        ports=ports,
+        cloud=cloud,
+        interruptible=interruptible,
+    )
+
+
 @app.command()
 def fetch(
     index: Annotated[int, typer.Option("--index", help="Pod index from rpod list.")],
@@ -193,7 +271,9 @@ def fetch(
     ] = None,
     archive: Annotated[
         bool,
-        typer.Option("--archive", help="Archive remote path as .tar.gz before fetching."),
+        typer.Option(
+            "--archive", help="Archive remote path as .tar.gz before fetching."
+        ),
     ] = False,
     dry_run: Annotated[
         bool,
@@ -211,3 +291,9 @@ def fetch(
         archive=archive,
         dry_run=dry_run,
     )
+
+
+@gpu_app.command("list")
+def list_gpus() -> None:
+    """List RunPod GPU types available for pod creation."""
+    gpu_module.list_gpus(console)
