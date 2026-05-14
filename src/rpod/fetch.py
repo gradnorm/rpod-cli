@@ -27,12 +27,16 @@ def run(
     )
     try:
         if archive:
+            console.print("[cyan]Creating archive on remote...[/cyan]")
             remote_archive = create_remote_archive(target, remote_path, dry_run=dry_run)
             try:
+                console.print("[cyan]Downloading archive...[/cyan]")
                 ssh.copy_from(target, remote_archive, local_path, dry_run=dry_run)
             finally:
+                console.print("[cyan]Cleaning up remote archive...[/cyan]")
                 cleanup_remote_archive(target, remote_archive, dry_run=dry_run)
         else:
+            console.print("[cyan]Downloading...[/cyan]")
             ssh.copy_from(target, remote_path, local_path, dry_run=dry_run)
     except ssh.RpodCommandError as exc:
         console.print(f"[red]Fetch failed[/red]\n{exc}")
@@ -71,7 +75,9 @@ def cleanup_remote_archive(
 def default_local_path(remote_path: str, *, archive: bool = False) -> str:
     name = PurePosixPath(remote_path.rstrip("/")).name
     if not name:
-        raise ValueError("Cannot infer local path for remote root. Provide --local-path.")
+        raise ValueError(
+            "Cannot infer local path for remote root. Provide --local-path."
+        )
     if archive:
         return f"{name}.tar.gz"
     return name

@@ -65,6 +65,36 @@ Example output:
 Commands such as `rpod ssh`, `rpod deploy`, and `rpod fetch` use the index
 displayed in `rpod list` to select the target pod.
 
+## List GPU types:
+
+```bash
+rpod gpu list
+```
+
+Use the GPU index from `rpod gpu list` when creating a pod.
+
+## Create a pod:
+
+```bash
+rpod create \
+  --gpu-index 1 \
+  --name train-test \
+  --image runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04 \
+  --disk 50 \
+  --volume 50 \
+  --ports "22/tcp" \
+  --cloud SECURE
+```
+
+You can also select a GPU by ID:
+
+```bash
+rpod create \
+  --gpu "NVIDIA GeForce RTX 4090" \
+  --name train-test \
+  --image runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
+```
+
 ## Deploy a repo and run setup:
 
 ```bash
@@ -100,6 +130,22 @@ For public repos, omit `--github-deploy-key`.
 ```bash
 rpod ssh --index 1 --ssh-key ~/.ssh/runpod_ed25519
 ```
+
+## Stop or terminate a pod:
+
+Stop releases the GPU while keeping the pod volume data:
+
+```bash
+rpod stop --index 1
+```
+
+Terminate deletes the pod. Export or fetch anything important first:
+
+```bash
+rpod terminate --index 1
+```
+
+Both commands ask for confirmation before running.
 
 ## Fetch artifacts:
 
